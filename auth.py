@@ -1,0 +1,54 @@
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
+
+import database
+
+
+auth_bp = Blueprint("auth", __name__)
+
+
+@auth_bp.route("/registro", methods=["GET", "POST"])
+def registro():
+    if request.method == "POST":
+        nome = request.form["nome"]
+        email = request.form["email"]
+        senha_hash = generate_password_hash(request.form["senha"])
+        with database.conectar() as conn:
+            cursor = conn.cursor()
+            email_existente = cursor.execute(
+                """
+                SELECT * FROM usuarios WHERE email = ?
+                """,
+                (email,)
+            ).fetchone()
+
+            if not email == email_existente:
+                cursor.execute(
+                    """
+                    INSERT INTO usuarios (nome, email, senha_hash)
+                    VALUES (?, ?, ?)
+                    """,
+                    (nome, email, senha_hash,)
+                )
+                conn.commit()
+            else:
+                flash("Email existente. Tente registrar com outro email.")
+                return render_template("registro.html")
+        return redirect(url_for("auth.login"))
+
+    return render_template("registro.html")
+
+
+@auth_bp.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        flash("Complete o login usando check_password_hash e session.")
+        return redirect(url_for("auth.login"))
+
+    return render_template("login.html")
+
+
+@auth_bp.route("/logout")
+def logout():
+    flash("Complete o logout removendo os dados da session.")
+    return redirect(url_for("auth.login"))
